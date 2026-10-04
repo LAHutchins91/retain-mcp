@@ -1,2 +1,83 @@
-# retain-mcp
-Approved freelance retainer: included hours, overage rules, what's in, what's out, and the renewal date, connected to AI assistants over MCP.
+# Retain
+
+Retain keeps a freelancer's approved retainer — included hours, overage rules, what is in, what is out, and the renewal date — then lets an assistant read that record before it answers. An assistant cannot promise work outside the retainer or waive overage.
+
+It works with ChatGPT, Claude, Gemini, Grok, and Cursor, plus any other MCP client that can do Streamable HTTP and OAuth. It is not a ChatGPT-only plugin.
+
+Sign in with your Retain account when the assistant opens OAuth. Do not paste an API key or password into a header. Retain supports dynamic client registration: leave the client id and secret empty. The protected-resource metadata at `/.well-known/oauth-protected-resource/mcp` points clients at the OAuth issuer, which registers them.
+
+Retain tools need Pro or an active trial. A new subscription includes a 14-day trial. This page does not list a price. Checkout shows the billing interval and payment terms.
+
+There is no hosted production domain in this repository. Run the server yourself and use the base URL you configure. The default MCP address is `http://127.0.0.1:3000/mcp`.
+
+## What the assistant can do
+
+After you approve the connection, the server exposes these tools:
+
+- list_retainers
+- open_retainer
+- read_retainer
+- set_included_hours
+- set_overage_terms
+- note_included_work
+- note_excluded_work
+- set_renewal_date
+- approve_retainer
+- assess_work_request
+- propose_retainer_change
+- approve_retainer_change
+
+`read_retainer` is the read the assistant should do before it answers. `assess_work_request` is the check before it promises that a request is included. Draft terms are not an approved commitment. A proposed retainer change does not change the record. After the retainer is approved, `note_included_work` refuses new work, and `set_overage_terms` refuses a waiver. Those changes go through `propose_retainer_change` and then `approve_retainer_change`, and only when you explicitly approve that change.
+
+The assistant only calls these tools when you and the host allow it.
+
+## Connect
+
+Cursor, in `~/.cursor/mcp.json` or a project `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "retain": {
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}
+```
+
+Do not add a headers block. Cursor registers a client and opens sign-in.
+
+Claude Code:
+
+```bash
+claude mcp add --transport http retain http://127.0.0.1:3000/mcp
+```
+
+Do not pass an Authorization header. Other clients use the same address, choose OAuth, and leave client id and secret empty. Steps for ChatGPT, Claude, Gemini, Grok, and Cursor are on the connect page at `/connect`.
+
+Registry metadata for this server is in `server.json` (`io.github.LAHutchins91/retain`). The remote URL there is the local listener, not a deployed host.
+
+## Run
+
+```bash
+npm install
+npm test
+npm run typecheck
+npm run build
+npm start
+```
+
+When stdin is a terminal, Retain serves Streamable HTTP on port 3000. When stdin is not a terminal, it speaks MCP over stdio and still opens the HTTP port. Logs during stdio mode go to stderr so they do not mix with the protocol.
+
+Records are stored durably in a JSON file. The default path is `~/.retain/retain.json`. Set `RETAIN_DATA_PATH` to move it. One server process owns that file.
+
+OAuth uses the same idea as a Supabase authorization server with dynamic client registration. Set these on the server process, not in an MCP header:
+
+- `APP_BASE_URL` (default `http://localhost:3000`)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_YEARLY` (Stripe catalog ids, not prices)
+
+Tool calls other than discovery require a signed-in account whose subscription status is `active` or `trialing`.
