@@ -271,3 +271,5 @@ export function createApp(deps: RetainDeps): Express {
 
   return app;
 }
+
+export default createApp(defaultDeps());
